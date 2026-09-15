@@ -1,0 +1,13 @@
+location            = "Australia East"
+resource_group_name = "koalatech-8-1p-rg"
+
+# Both names must be globally unique. Use only letters/numbers; Storage must be lowercase.
+acr_name             = "replacewithuniqueacr"
+storage_account_name = "replaceuniquestorage"
+
+aks_cluster_name = "koalatech-week08-aks"
+aks_dns_prefix   = "koalatech-week08"
+aks_node_count   = 3
+aks_node_vm_size = "Standard_D2s_v3"
+
+environment = "task-8.1p"

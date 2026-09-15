@@ -108,7 +108,7 @@ const CourseForm = () => {
 
       if (isEdit) {
         const {
-          course_id,
+          course_id: _courseId,
           ...updatePayload
         } = payload;
 

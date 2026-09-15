@@ -72,6 +72,15 @@ jobs:
           kubectl apply \
             -f kubernetes/staging/
 
+      - name: Wait for staging databases
+        run: |
+          kubectl wait \
+            --for=condition=available \
+            deployment/user-db deployment/student-db deployment/lecturer-db \
+            deployment/course-db deployment/enrollment-db \
+            -n staging \
+            --timeout=300s
+
       - name: Update frontend image
         run: |
           kubectl set image deployment/frontend \
@@ -146,6 +155,4 @@ jobs:
 
       - name: Show staging resources
         run: |
-          kubectl get pods -n staging
-          kubectl get services -n staging
-          kubectl get pvc -n staging
+          kubectl get pods,services,pvc,deployments -n staging

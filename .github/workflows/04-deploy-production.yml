@@ -17,13 +17,42 @@ jobs:
       name: production
 
     steps:
-      - name: Checkout repository
+      - name: Validate tested image SHA
+        env:
+          IMAGE_TAG: ${{ inputs.image_tag }}
+        run: |
+          if ! [[ "$IMAGE_TAG" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "image_tag must be a full 40-character Git commit SHA."
+            exit 1
+          fi
+
+      - name: Checkout tested commit
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.image_tag }}
 
       - name: Login to Azure
         uses: azure/login@v3
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Verify promoted images exist in ACR
+        env:
+          IMAGE_TAG: ${{ inputs.image_tag }}
+        run: |
+          for repository in \
+            koalatech-frontend \
+            koalatech-user-service \
+            koalatech-student-service \
+            koalatech-lecturer-service \
+            koalatech-course-service \
+            koalatech-enrollment-service
+          do
+            az acr repository show \
+              --name "${{ vars.ACR_NAME }}" \
+              --image "$repository:$IMAGE_TAG" \
+              --output none
+          done
 
       - name: Get AKS credentials
         run: |
@@ -65,6 +94,15 @@ jobs:
         run: |
           kubectl apply \
             -f kubernetes/production/
+
+      - name: Wait for production databases
+        run: |
+          kubectl wait \
+            --for=condition=available \
+            deployment/user-db deployment/student-db deployment/lecturer-db \
+            deployment/course-db deployment/enrollment-db \
+            -n production \
+            --timeout=300s
 
       - name: Update frontend image
         run: |
@@ -140,6 +178,4 @@ jobs:
 
       - name: Show production resources
         run: |
-          kubectl get pods -n production
-          kubectl get services -n production
-          kubectl get pvc -n production
+          kubectl get pods,services,pvc,deployments -n production
