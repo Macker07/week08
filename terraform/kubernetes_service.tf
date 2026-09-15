@@ -9,6 +9,12 @@ resource "azurerm_kubernetes_cluster" "main" {
     name       = "default"
     node_count = var.aks_node_count
     vm_size    = var.aks_node_vm_size
+
+    upgrade_settings {
+      drain_timeout_in_minutes      = 0
+      max_surge                     = "10%"
+      node_soak_duration_in_minutes = 0
+    }
   }
 
   identity {
