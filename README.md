@@ -1,5 +1,7 @@
 # Week 08 – Continuous Delivery with GitHub Actions and Kubernetes
 
+This repository deploys the same commit-SHA-tagged artifacts through staging and production.
+
 In Week 07, we implemented a Continuous Integration (CI) pipeline using GitHub Actions. The pipeline automatically tested the backend services, built Docker images, and pushed the successfully built images to Azure Container Registry (ACR).
 
 In Week 08, we extend this workflow to implement **Continuous Delivery (CD)**.
