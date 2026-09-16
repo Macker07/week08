@@ -47,6 +47,8 @@ export const AuthProvider = ({
   );
 };
 
+// The context hook intentionally lives beside its provider as their public API.
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
   const context =
     useContext(AuthContext);

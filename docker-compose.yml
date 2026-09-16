@@ -5,7 +5,6 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     image: koalatech-frontend:v1
-    container_name: koalatech-frontend
     ports:
       - "3000:80"
     depends_on:
@@ -28,12 +27,19 @@ services:
       context: ./user-service
       dockerfile: Dockerfile
     image: koalatech-user-service:v1
-    container_name: user-service
     restart: unless-stopped
     ports:
       - "8000:8000"
-    env_file:
-      - ./user-service/.env
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: users
+      POSTGRES_HOST: user-db
+      POSTGRES_PORT: 5432
+      JWT_SECRET_KEY: koalatech-local-development-secret
+      DEFAULT_ADMIN_USERNAME: admin
+      DEFAULT_ADMIN_EMAIL: admin@koalatech.edu.au
+      DEFAULT_ADMIN_PASSWORD: AdminPassword123!
     depends_on:
       user-db:
         condition: service_healthy
@@ -42,7 +48,6 @@ services:
 
   user-db:
     image: postgres:16-alpine
-    container_name: user-db
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
@@ -70,12 +75,18 @@ services:
       context: ./student-service
       dockerfile: Dockerfile
     image: koalatech-student-service:v1
-    container_name: student-service
     restart: unless-stopped
     ports:
       - "8001:8000"
-    env_file:
-      - ./student-service/.env
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: students
+      POSTGRES_HOST: student-db
+      POSTGRES_PORT: 5432
+      JWT_SECRET_KEY: koalatech-local-development-secret
+      AZURE_STORAGE_CONNECTION_STRING: ""
+      AZURE_STORAGE_CONTAINER_NAME: student-profile-photo
     depends_on:
       student-db:
         condition: service_healthy
@@ -84,7 +95,6 @@ services:
 
   student-db:
     image: postgres:16-alpine
-    container_name: student-db
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
@@ -112,12 +122,18 @@ services:
       context: ./lecturer-service
       dockerfile: Dockerfile
     image: koalatech-lecturer-service:v1
-    container_name: lecturer-service
     restart: unless-stopped
     ports:
       - "8002:8000"
-    env_file:
-      - ./lecturer-service/.env
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: lecturers
+      POSTGRES_HOST: lecturer-db
+      POSTGRES_PORT: 5432
+      JWT_SECRET_KEY: koalatech-local-development-secret
+      AZURE_STORAGE_CONNECTION_STRING: ""
+      AZURE_STORAGE_CONTAINER_NAME: lecturer-profile-photo
     depends_on:
       lecturer-db:
         condition: service_healthy
@@ -126,7 +142,6 @@ services:
 
   lecturer-db:
     image: postgres:16-alpine
-    container_name: lecturer-db
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
@@ -154,12 +169,16 @@ services:
       context: ./course-service
       dockerfile: Dockerfile
     image: koalatech-course-service:v1
-    container_name: course-service
     restart: unless-stopped
     ports:
       - "8003:8000"
-    env_file:
-      - ./course-service/.env
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: courses
+      POSTGRES_HOST: course-db
+      POSTGRES_PORT: 5432
+      JWT_SECRET_KEY: koalatech-local-development-secret
     depends_on:
       course-db:
         condition: service_healthy
@@ -168,7 +187,6 @@ services:
 
   course-db:
     image: postgres:16-alpine
-    container_name: course-db
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
@@ -196,12 +214,16 @@ services:
       context: ./enrollment-service
       dockerfile: Dockerfile
     image: koalatech-enrollment-service:v1
-    container_name: enrollment-service
     restart: unless-stopped
     ports:
       - "8004:8000"
-    env_file:
-      - ./enrollment-service/.env
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: enrollments
+      POSTGRES_HOST: enrollment-db
+      POSTGRES_PORT: 5432
+      JWT_SECRET_KEY: koalatech-local-development-secret
     depends_on:
       enrollment-db:
         condition: service_healthy
@@ -210,7 +232,6 @@ services:
 
   enrollment-db:
     image: postgres:16-alpine
-    container_name: enrollment-db
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres

@@ -1,125 +1,93 @@
-# SIT722 Task 8.1P — Continuous Delivery Using GitHub Actions
+# SIT722 Task 9.3C — Continuous Deployment Using GitHub Actions
 
 **Student:** [Name]  
 **Student ID:** [ID]  
 **Repository:** [GitHub URL]  
-**Tested commit SHA:** `[SHA]`
+**Deployed commit SHA:** `[40-character SHA]`
 
-## Introduction
+## 1. Introduction
 
-This practical implements a continuous delivery pipeline for the KoalaTech microservices application. GitHub Actions performs integration testing and artifact publication, Azure Container Registry (ACR) stores immutable SHA-tagged images, and Azure Kubernetes Service (AKS) hosts separate staging and production environments. Terraform provides the Azure infrastructure as code.
+This task extends the Task 8.1P Continuous Integration pipeline with Continuous Deployment. GitHub Actions tests the KoalaTech application, publishes immutable SHA-tagged images to Azure Container Registry (ACR), deploys them to Azure Kubernetes Service (AKS) staging, validates staging, and automatically deploys the same tested artifacts to production.
 
-# Part A — Workflow Analysis
+## 2. Existing CI Pipeline and CD Changes
 
-## Pipeline overview
+The Task 8.1P CI workflow was retained for frontend/backend tests and container publication. The deployment extension adds authenticated AKS access, environment-scoped secrets, staging and production namespaces, staging smoke tests, automatic production deployment, and rollout verification.
 
-The pipeline is divided into four workflows so that artifact creation, staging deployment, post-deployment validation, and production promotion have clear responsibilities. The Docker images are tagged with the source commit SHA. That identifier provides traceability and allows production to reuse exactly the artifacts validated in staging.
+| Workflow/job | Trigger | Responsibility |
+|---|---|---|
+| `01 - CI` | Pull request and push to `main` | Test the frontend and five backend services; on `main`, build and push six SHA-tagged images |
+| `02 - Deploy to Staging` | Successful `01 - CI` run on `main` | Deploy the tested SHA to staging and verify rollouts |
+| Staging smoke test in `03` | Successful staging deployment | Test the frontend and backend health endpoint |
+| Production job in `03` | Successful staging smoke test | Automatically deploy the same tested SHA to production and verify rollouts |
+| `04 - Deploy to Production` | Manual dispatch | Recovery/redeployment only; not used in the demonstration |
 
-| Workflow | Trigger | Responsibility | Result |
-|---|---|---|---|
-| `01 - CI` | Push to `main` or manual dispatch | Test five backend services, build six Docker images, and push them to ACR | SHA-tagged deployable artifacts |
-| `02 - Deploy to Staging` | Successful completion of `01 - CI` on `main` | Deploy the CI commit to the `staging` namespace and wait for rollouts | Running staging release |
-| `03 - Test Staging` | Successful completion of `02 - Deploy to Staging` | Test the frontend and a backend health endpoint through the frontend proxy | Validated staging release |
-| `04 - Deploy to Production` | Manual dispatch with a full commit SHA | Validate and deploy the already-built SHA-tagged images to `production` | Manually promoted production release |
+The production job does not rebuild images. It verifies the six SHA-tagged images in ACR and deploys those exact artifacts.
 
-## Continuous Integration
+**Figure 1.** [Existing Task 8.1P CI workflow.]
+**Figure 2.** [Task 9.3C workflow/configuration changes, including the automatic production dependency.]
 
-The CI workflow uses a matrix to test `user-service`, `student-service`, `lecturer-service`, `course-service`, and `enrollment-service`. Each test job starts an isolated PostgreSQL 16 database, checks out the source, installs Python 3.12 dependencies, and runs pytest. The build-and-push matrix depends on all tests succeeding. It builds the frontend and five backend images and publishes each image to ACR with `${{ github.sha }}` as its tag. A failed test therefore prevents publication of a candidate release.
+## 3. Azure Deployment Environment
 
-## Staging deployment and validation
+Terraform provides ACR, a three-node AKS cluster, Azure Storage, private blob containers, and the AKS-to-ACR pull role assignment. Staging and production use separate GitHub Environments, Kubernetes namespaces, secrets, manifests, databases, and persistent volumes.
 
-The staging workflow is triggered by the successful CI workflow and checks out `workflow_run.head_sha`, ensuring it uses the tested revision. It creates the namespace and Kubernetes secrets, applies staging manifests, updates each deployment to its SHA-tagged ACR image, and waits for rollouts. The next workflow waits for the frontend LoadBalancer address and tests both the frontend document and `/api/users/health`. This distinguishes Kubernetes accepting a deployment from the deployed application actually responding.
+**Figure 3.** [Successful Terraform apply.]
 
-## Production deployment
+**Figure 4.** [Azure resource inventory.]
+**Figure 5.** [`kubectl get nodes` showing three Ready nodes.]
 
-Production is intentionally manual. The operator supplies the full SHA that passed staging. The workflow validates its format, checks out that exact revision, and updates production deployments to existing ACR images with the supplied tag. It does not rebuild images. This prevents differences between the artifact tested in staging and the artifact released to production.
+## 4. Automated Deployment Demonstration
 
-## Separation of CI and CD
+### 4.1 Original production application
 
-CI verifies source changes and produces versioned artifacts. CD consumes those artifacts and moves them through staging validation and controlled production promotion. Keeping these responsibilities separate makes failures easier to locate and prevents deployment from beginning before integration tests pass.
+Before changing the code, I recorded the original production frontend: [describe the original visible text or colour].
 
-## Multiple environments
+**Figure 6.** [Original production UI with URL/address visible.]
 
-Staging and production use different GitHub Environments, environment-scoped secrets, Kubernetes namespaces, and manifest directories. Staging deployment is automatic, while production is manual. The environment separation allows independent configuration and data while the shared SHA proves artifact continuity.
+### 4.2 Frontend change and pull request
 
-## Comparison with Chapter 8, Example 3
+On branch `[branch]`, I changed [file and visible heading/text/colour]. I pushed the branch and opened a pull request to `main`.
 
-Chapter 8, Example 3 also uses GitHub Actions to automate deployment of a microservice to Kubernetes. It develops automation after first establishing a manual deployment, authenticates `kubectl`, and supplies configuration through GitHub secrets and context variables. Both approaches treat a source-control event as the entry point for repeatable automation and keep sensitive configuration outside the repository.
+**Figure 7.** [Frontend code diff.]
+**Figure 8.** [Pull request before merge.]
 
-The Week 08 solution extends that basic microservice deployment into an explicit multi-environment delivery chain. It tests five backend services, publishes six images to ACR, deploys automatically to staging, performs a post-deployment smoke test, and requires manual promotion of the same SHA to production. The chapter also warns that direct production deployment is dangerous; the Week 08 staging gate and manual production workflow directly address that risk. The most important similarity is automated Kubernetes deployment using GitHub Actions and protected configuration. The most important difference is Week 08's separate staging validation and artifact-promotion process rather than one direct deployment workflow.
+### 4.3 CI, ACR, and staging
 
-# Part B — Pipeline Demonstration
+After the pull request checks passed and the PR was merged, `01 - CI` tested the merge commit and published six images tagged `[SHA]`. `02 - Deploy to Staging` deployed that SHA, and `03 - Validate Staging and Deploy Production` verified the frontend and `/api/users/health` endpoint.
 
-## Infrastructure
+**Figure 9.** [Successful PR checks and merge commit.]
 
-**Figure 1.** [Insert successful Terraform apply screenshot.]  
-Terraform created ACR, AKS with three nodes, Azure Storage, two private blob containers, and the AKS-to-ACR pull assignment.
+**Figure 10.** [Successful CI test/build matrices.]
 
-**Figure 2.** [Insert Azure Resource Group screenshot.]  
-The Azure resource inventory confirms that the infrastructure declared in Terraform exists.
+**Figure 11.** [ACR repositories/tags matching the merge SHA.]
 
-**Figure 3.** [Insert `kubectl get nodes` screenshot.]  
-All three AKS nodes report `Ready`, satisfying the capacity requirement for staging and production database workloads.
+**Figure 12.** [Staging resources and deployed image SHA.]
+**Figure 13.** [Successful staging smoke-test steps.]
 
-## Continuous Integration and ACR publication
+### 4.4 Automatic production deployment
 
-I made the following small change to trigger CI: [describe change]. The change was committed and pushed to `main`.
+The successful smoke-test job automatically started the dependent production job. It reused the staging-tested SHA, applied the production configuration, and waited for all six application rollouts. I did not manually deploy the demonstration change.
 
-**Figure 4.** [Insert overall `01 - CI` screenshot.]  
-The CI run shows successful test and build matrices for the tested commit.
+**Figure 14.** [Workflow graph showing smoke test followed by production.]
 
-**Figure 5.** [Insert expanded pytest step.]  
-The automated backend tests passed against the workflow's isolated PostgreSQL service.
+**Figure 15.** [Successful production rollout and image evidence.]
 
-**Figure 6.** [Insert expanded Docker build/push step.]  
-The workflow built and published a commit-SHA-tagged image only after tests succeeded.
+**Figure 16.** [Staging and production image references showing the same SHA.]
+**Figure 17.** [Updated production UI with URL/address visible.]
 
-**Figure 7.** [Insert ACR repositories and tag evidence.]  
-ACR contains the six application repositories, and the displayed tag matches the tested commit SHA.
+## 5. Reflection
 
-## Staging deployment and validation
+CI validates changes and creates traceable artifacts. CD consumes those artifacts and moves them automatically through staging validation into production. Staging catches deployment, secret, networking, storage, database, and startup failures that source-level tests may miss. The smoke-test dependency prevents a failed staging release from being promoted, while immutable SHA tags prevent production from receiving an untested rebuild.
 
-**Figure 8.** [Insert successful `02 - Deploy to Staging` screenshot.]  
-The workflow automatically deployed the exact CI revision and completed all rollout checks.
+## 6. Resource Cleanup
 
-**Figure 9.** [Insert staging pods/services/PVC output.]  
-The staging namespace contains ready application and database pods, a frontend external address, and bound persistent volumes.
+After collecting all other evidence, I ran Terraform destroy, deleted the resource group, and verified that it no longer existed.
 
-**Figure 10.** [Insert successful `03 - Test Staging` screenshot.]  
-The automated validation confirmed both frontend reachability and backend health through the reverse proxy.
+**Figure 18.** [Successful Terraform destroy.]
+**Figure 19.** [`az group exists --name <RESOURCE_GROUP>` returning `false` or equivalent Portal evidence.]
 
-**Figure 11.** [Insert staging browser functionality screenshot.]  
-The application loaded at the staging address and [describe login/list/create action], demonstrating frontend-to-backend communication.
+## 7. Conclusion
 
-## Production promotion and verification
-
-**Figure 12.** [Insert manual workflow form with SHA.]  
-The tested SHA was explicitly selected for controlled production promotion.
-
-**Figure 13.** [Insert successful `04 - Deploy to Production` screenshot.]  
-The workflow deployed the existing images without rebuilding them and completed all production rollouts.
-
-**Figure 14.** [Insert production resources and staging/production SHA comparison.]  
-Production resources are ready, and the image references prove that staging and production use the same SHA.
-
-**Figure 15.** [Insert production browser functionality screenshot.]  
-The production frontend loaded and [describe backend-driven action], confirming that the promoted release is operational.
-
-# Part C — Reflection
-
-Continuous Integration focuses on frequently combining and validating changes. In this project it runs backend tests, builds containers, and publishes traceable artifacts. Continuous Delivery begins with those verified artifacts and keeps them deployable by progressing them through staging and validation. The final production decision remains manual, so this is continuous delivery rather than uncontrolled automatic production deployment.
-
-Staging provides a production-like checkpoint isolated from users and production data. It can reveal image-pull, secret, networking, storage, database, and application-startup problems that unit tests cannot. Testing the exact SHA in staging also gives meaning to the later production promotion.
-
-GitHub Actions makes the process repeatable and auditable. Source events trigger consistent jobs, dependencies enforce ordering, matrices avoid duplicated configuration, logs retain evidence, and GitHub Environments scope secrets and deployment controls. Automating these steps reduces manual mistakes while retaining a deliberate production gate.
-
-# Part D — Resource Cleanup
-
-**Figure 16.** [Insert successful Terraform destroy screenshot.]  
-Terraform removed every task resource it managed after all deployment evidence had been captured.
-
-**Figure 17.** [Insert empty resource-group CLI/Portal evidence.]  
-The final Azure inventory confirms that no task resources remain, preventing continued cloud consumption.
+The merged frontend change progressed from CI through ACR and staging validation to production without a manual deployment. Production displayed the visible change and ran the exact image SHA tested in staging. All task Azure resources were then removed.
 
 ## References
 

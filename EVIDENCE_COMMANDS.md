@@ -1,6 +1,6 @@
-# Task 8.1P Evidence Commands
+# Task 9.3C Evidence Commands
 
-Run these commands from the `week08` directory. Replace bracketed values where required. Never capture secret values.
+Run these commands from the `week09` directory. Replace bracketed values where required. Never capture secret values.
 
 ## Before deployment
 
@@ -15,8 +15,8 @@ terraform -chdir=terraform apply task81p.tfplan
 ## Infrastructure
 
 ```bash
-az resource list --resource-group koalatech-8-1p-rg -o table
-az aks get-credentials --resource-group koalatech-8-1p-rg --name koalatech-week08-aks --overwrite-existing
+az resource list --resource-group koalatech-9-3c-rg -o table
+az aks get-credentials --resource-group koalatech-9-3c-rg --name koalatech-week09-aks --overwrite-existing
 kubectl get nodes -o wide
 ```
 
@@ -51,5 +51,6 @@ kubectl get service frontend -n production -o jsonpath='{.status.loadBalancer.in
 ```bash
 terraform -chdir=terraform plan -destroy -out=destroy.tfplan
 terraform -chdir=terraform apply destroy.tfplan
-az resource list --resource-group koalatech-8-1p-rg -o table
+az group delete --name koalatech-9-3c-rg --yes
+az group exists --name koalatech-9-3c-rg
 ```

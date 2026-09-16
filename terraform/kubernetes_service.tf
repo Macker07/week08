@@ -6,7 +6,7 @@ resource "azurerm_kubernetes_cluster" "main" {
   kubernetes_version  = var.kubernetes_version
 
   default_node_pool {
-    name       = "default"
+    name       = "nodepool1"
     node_count = var.aks_node_count
     vm_size    = var.aks_node_vm_size
 
@@ -22,12 +22,17 @@ resource "azurerm_kubernetes_cluster" "main" {
   }
 
   tags = merge(var.tags, { Environment = var.environment })
+
+  # This cluster was created before it was imported into Terraform. Preserve
+  # its generated administrator/SSH profile instead of replacing the cluster.
+  lifecycle {
+    ignore_changes = [linux_profile]
+  }
 }
 
 # Allow the AKS kubelet identity to pull the private application images.
 resource "azurerm_role_assignment" "aks_acr_pull" {
-  principal_id                     = azurerm_kubernetes_cluster.main.kubelet_identity[0].object_id
-  role_definition_name             = "AcrPull"
-  scope                            = azurerm_container_registry.main.id
-  skip_service_principal_aad_check = true
+  principal_id         = azurerm_kubernetes_cluster.main.kubelet_identity[0].object_id
+  role_definition_name = "AcrPull"
+  scope                = azurerm_container_registry.main.id
 }

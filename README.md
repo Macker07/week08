@@ -52,6 +52,18 @@ kubectl get nodes
 
 ---
 
+# 3. Run Locally (Optional)
+
+The Compose configuration includes non-production local defaults, so no untracked `.env` files are required:
+
+```bash
+docker compose up --build
+```
+
+Open `http://localhost:3000`. The default local administrator is `admin` / `AdminPassword123!`.
+
+---
+
 # 4. Fork the Repository
 
 Fork the provided Week 08 repository into your own GitHub account.
@@ -65,7 +77,7 @@ git clone <YOUR-FORK-URL>
 Move into the project:
 
 ```bash
-cd week08
+cd week09
 ```
 
 Ensure that your remote points to your fork:
@@ -295,3 +307,24 @@ After the production deployment completes:
 - Access the production application.
 - Confirm that the application is working correctly.
 - Verify that production is running the same image SHA that was tested in staging.
+
+---
+
+# 14. Demonstrate the Required Frontend Change
+
+Create a branch, make an obvious frontend text or colour change, push it, and open a pull request. Capture the original UI, pull request, successful CI/CD workflow chain, ACR SHA tag, running AKS image, and updated production UI. Merge the pull request to `main`; do not manually deploy the demonstration release.
+
+---
+
+# 15. Clean Up Azure Resources
+
+After capturing all deployment evidence, destroy the Terraform-managed resources and then delete the resource group (the resource group is looked up by Terraform rather than managed by it):
+
+```bash
+terraform -chdir=terraform plan -destroy -out=destroy.tfplan
+terraform -chdir=terraform apply destroy.tfplan
+az group delete --name <RESOURCE_GROUP> --yes
+az group exists --name <RESOURCE_GROUP>
+```
+
+The last command must return `false`. Capture both the successful destroy and cleanup verification for the submission.

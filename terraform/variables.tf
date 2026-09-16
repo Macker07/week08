@@ -41,13 +41,13 @@ variable "aks_dns_prefix" {
 }
 
 variable "aks_node_count" {
-  description = "Number of nodes in the AKS default node pool. Task 8.1P requires three."
+  description = "Number of nodes in the AKS default node pool. This project uses three."
   type        = number
   default     = 3
 
   validation {
     condition     = var.aks_node_count == 3
-    error_message = "Task 8.1P requires exactly three AKS nodes."
+    error_message = "This project requires exactly three AKS nodes."
   }
 }
 
@@ -66,7 +66,7 @@ variable "kubernetes_version" {
 variable "environment" {
   description = "Environment label applied to Azure resource tags."
   type        = string
-  default     = "task-8.1p"
+  default     = "task-9.3c"
 }
 
 variable "tags" {
@@ -75,6 +75,6 @@ variable "tags" {
   default = {
     Project   = "KoalaTech Course Platform"
     ManagedBy = "Terraform"
-    Practical = "Week08"
+    Practical = "Week09"
   }
 }
