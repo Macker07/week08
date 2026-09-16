@@ -5,6 +5,12 @@ on:
   push:
     branches:
       - main
+
+  # Validate proposed changes before they can be merged.
+  # Image publishing remains restricted to pushes and manual runs below.
+  pull_request:
+    branches:
+      - main
   
   # Manual trigger for the workflow
   workflow_dispatch:

@@ -1,26 +1,30 @@
-# Week 08 – Continuous Delivery with GitHub Actions and Kubernetes
+# Task 9.3C – Continuous Deployment with GitHub Actions and Kubernetes
 
 This repository deploys the same commit-SHA-tagged artifacts through staging and production.
 
 In Week 07, we implemented a Continuous Integration (CI) pipeline using GitHub Actions. The pipeline automatically tested the backend services, built Docker images, and pushed the successfully built images to Azure Container Registry (ACR).
 
-In Week 08, we extend this workflow to implement **Continuous Delivery (CD)**.
+Task 9.3C extends this workflow to implement **Continuous Deployment (CD)**.
 
-The application will first be automatically deployed to a **staging environment**. After deployment, automated tests will verify that the staging application is working correctly. A tested version can then be manually promoted to the **production environment**.
+The application is first automatically deployed to a **staging environment**. After deployment, automated smoke tests verify that the staging application works. A successful smoke test automatically deploys the same tested images to the **production environment**.
 
 The same Docker images that are tested in staging are deployed to production. The application is **not rebuilt** during production deployment.
 
 ---
 
-## 1. Continuous Delivery Workflow
+## 1. Continuous Deployment Workflow
 
-The Week 08 pipeline consists of four GitHub Actions workflows:
+The pipeline uses the following release path:
 
-![](./workflow.png)
+```text
+Pull request -> CI validation -> merge to main -> build and push SHA-tagged images
+-> deploy staging -> smoke test staging -> deploy the tested SHA to production
+-> verify every production rollout
+```
 
-The first three workflows run automatically.
+The CI, staging deployment, staging verification, and production deployment all run automatically after a change is merged to `main`. Pull requests run the test and build checks without publishing images or deploying.
 
-Production deployment is intentionally manual.
+The production job is gated by the staging smoke test and uses immutable commit-SHA image tags. The separate manual production workflow remains available for an intentional rollback or redeployment of a previously tested SHA.
 
 ---
 
@@ -262,49 +266,27 @@ The repository contains four workflow files:
 
 ---
 
-# 12. Run and Verify the Staging Application
+# 12. Run and Verify Continuous Deployment
 
 Verify that the following workflows complete successfully:
 
 01 - CI
 02 - Deploy to Staging
-03 - Staging Test
+03 - Validate Staging and Deploy Production
 
 Once the deployment is complete, verify the Kubernetes resources in the staging namespace and access the staging application using the frontend external IP.
 
-Confirm that the application is working correctly before proceeding to production.
-
-13. Deploy to Production
-
-Production deployment is performed manually.
-
-Go to:
-
-GitHub Repository
-→ Actions
-→ 04 - Deploy to Production
-→ Run workflow
-
-Provide the image SHA that successfully passed the staging deployment and testing process.
-
-### Find the Image SHA
-
-Before running the production workflow, obtain the Git commit SHA of the version that was successfully deployed and tested in staging:
+The production deployment job starts automatically only after the staging smoke-test job succeeds. To confirm that production uses the tested commit SHA, obtain the merge commit:
 
 ```bash
 git rev-parse HEAD
 ```
 
-Copy the returned SHA and provide it as the `image_tag` when manually running the **04 - Deploy to Production** workflow.
+Compare it with the tag shown by the workflow's **Show production deployment evidence** step and the image running in AKS. Production uses the same image version that passed staging; the production job does not rebuild Docker images.
 
-> Make sure the SHA belongs to the version that successfully passed the staging pipeline.
+The **04 - Deploy to Production** workflow is retained only as an explicit recovery mechanism for redeploying a previously tested SHA. It is not used for the Task 9.3C automated deployment demonstration.
 
-
-Run the production workflow and verify that it completes successfully.
-
-Important: Production must use the same image version that was tested in staging. Do not rebuild the Docker images for production.
-
-14. Verify the Production Application
+# 13. Verify the Production Application
 
 After the production deployment completes:
 

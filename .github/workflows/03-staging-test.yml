@@ -1,4 +1,4 @@
-name: 03 - Test Staging
+name: 03 - Validate Staging and Deploy Production
 
 on:
   workflow_run:
@@ -69,3 +69,114 @@ jobs:
             --retry 10 \
             --retry-delay 5 \
             http://${{ env.FRONTEND_IP }}/api/users/health
+
+  deploy-production:
+    name: Deploy Tested Images to Production
+    runs-on: ubuntu-latest
+    needs: smoke-test
+
+    # The smoke test is the production gate. This job reuses the immutable
+    # images built for the original main-branch commit; it never rebuilds them.
+    environment:
+      name: production
+
+    env:
+      IMAGE_TAG: ${{ github.event.workflow_run.head_sha }}
+
+    steps:
+      - name: Checkout tested commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.IMAGE_TAG }}
+
+      - name: Login to Azure
+        uses: azure/login@v3
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Verify tested images exist in ACR
+        run: |
+          for repository in \
+            koalatech-frontend \
+            koalatech-user-service \
+            koalatech-student-service \
+            koalatech-lecturer-service \
+            koalatech-course-service \
+            koalatech-enrollment-service
+          do
+            az acr repository show \
+              --name "${{ vars.ACR_NAME }}" \
+              --image "$repository:$IMAGE_TAG" \
+              --output none
+          done
+
+      - name: Get AKS credentials
+        run: |
+          az aks get-credentials \
+            --resource-group ${{ vars.AKS_RESOURCE_GROUP }} \
+            --name ${{ vars.AKS_CLUSTER_NAME }} \
+            --overwrite-existing
+
+      - name: Create production namespace
+        run: |
+          kubectl create namespace production \
+            --dry-run=client \
+            -o yaml | kubectl apply -f -
+
+      - name: Create production secrets
+        run: |
+          kubectl create secret generic postgres-secret \
+            --namespace production \
+            --from-literal=POSTGRES_USER="${{ secrets.POSTGRES_USER }}" \
+            --from-literal=POSTGRES_PASSWORD="${{ secrets.POSTGRES_PASSWORD }}" \
+            --dry-run=client \
+            -o yaml | kubectl apply -f -
+
+          kubectl create secret generic application-secret \
+            --namespace production \
+            --from-literal=POSTGRES_USER="${{ secrets.POSTGRES_USER }}" \
+            --from-literal=POSTGRES_PASSWORD="${{ secrets.POSTGRES_PASSWORD }}" \
+            --from-literal=JWT_SECRET_KEY="${{ secrets.JWT_SECRET_KEY }}" \
+            --from-literal=DEFAULT_ADMIN_USERNAME="${{ secrets.DEFAULT_ADMIN_USERNAME }}" \
+            --from-literal=DEFAULT_ADMIN_EMAIL="${{ secrets.DEFAULT_ADMIN_EMAIL }}" \
+            --from-literal=DEFAULT_ADMIN_PASSWORD="${{ secrets.DEFAULT_ADMIN_PASSWORD }}" \
+            --from-literal=AZURE_STORAGE_CONNECTION_STRING="${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" \
+            --dry-run=client \
+            -o yaml | kubectl apply -f -
+
+      - name: Apply production manifests
+        run: kubectl apply -f kubernetes/production/
+
+      - name: Wait for production databases
+        run: |
+          kubectl wait \
+            --for=condition=available \
+            deployment/user-db deployment/student-db deployment/lecturer-db \
+            deployment/course-db deployment/enrollment-db \
+            -n production \
+            --timeout=300s
+
+      - name: Deploy tested images
+        run: |
+          for service in frontend user-service student-service lecturer-service course-service enrollment-service
+          do
+            kubectl set image "deployment/$service" \
+              "$service=${{ vars.ACR_LOGIN_SERVER }}/koalatech-$service:$IMAGE_TAG" \
+              -n production
+          done
+
+      - name: Verify production rollouts
+        run: |
+          for service in frontend user-service student-service lecturer-service course-service enrollment-service
+          do
+            kubectl rollout status "deployment/$service" \
+              -n production \
+              --timeout=300s
+          done
+
+      - name: Show production deployment evidence
+        run: |
+          kubectl get deployments,pods,services -n production
+          kubectl get deployment frontend \
+            -n production \
+            -o jsonpath='Frontend image: {.spec.template.spec.containers[0].image}{"\n"}'
