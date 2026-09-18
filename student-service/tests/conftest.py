@@ -2,8 +2,8 @@ import os
 
 from dotenv import load_dotenv
 
-# Load test environment before importing the app
-load_dotenv(".env.test", override=True)
+# Load local defaults while preserving values supplied by CI.
+load_dotenv(".env.test", override=False)
 
 import pytest
 from fastapi.testclient import TestClient

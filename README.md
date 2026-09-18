@@ -93,6 +93,28 @@ git remote -v
 GitHub Actions requires permission to interact with Azure.
 
 Create a Service Principal following the same process introduced previously.
+In addition to its resource-group deployment role, explicitly grant it the
+`AcrPush` role on this registry. A generic `Contributor` assignment does not
+grant ACR data-plane push permission.
+
+```bash
+CLIENT_ID="<clientId from AZURE_CREDENTIALS>"
+ACR_ID=$(az acr show --name "<ACR_NAME>" --query id --output tsv)
+
+az role assignment create \
+  --assignee "$CLIENT_ID" \
+  --role AcrPush \
+  --scope "$ACR_ID"
+
+az role assignment list \
+  --assignee "$CLIENT_ID" \
+  --scope "$ACR_ID" \
+  --query '[].roleDefinitionName' \
+  --output table
+```
+
+Wait a few minutes for Azure role propagation before starting the workflow.
+The final command must show `AcrPush`.
 
 The Service Principal must have sufficient permissions to:
 

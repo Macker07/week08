@@ -199,7 +199,7 @@ const Dashboard = () => {
         </Typography>
 
         <Typography color="text.secondary">
-          SIT722 Continuous Deployment Successful
+          KoalaTech — Automatically Released with GitHub Actions
         </Typography>
       </Box>
 
